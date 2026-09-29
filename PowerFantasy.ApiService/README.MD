@@ -1,0 +1,1 @@
+This website will allow league mates in sleeper fantasy football to vote on power rankings. It gives information about your league. Supplies data to the commissioner for weekly rankings. More to come
