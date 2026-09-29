@@ -6,7 +6,8 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:5312/health --max-time 3)",
       "Bash(curl -s http://localhost:5312/api/leagues/by-slug/c77d59e50b)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:5285 --max-time 3)",
-      "Bash(ipconfig)"
+      "Bash(ipconfig)",
+      "Bash(curl -s -I http://localhost:5285 --max-time 3)"
     ]
   }
 }
