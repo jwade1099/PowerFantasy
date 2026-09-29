@@ -1,0 +1,64 @@
+@page "/dashboard/voting"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Voting Link</PageTitle>
+
+<h1>Voting</h1>
+
+@if (leagueName is null)
+{
+    <div class="alert alert-danger">No league is linked to your account.</div>
+}
+else
+{
+    <p class="text-muted mb-4">Share this link with everyone in "@leagueName" so they can vote &mdash; no account needed on their end.</p>
+
+    <div class="voting-link-card">
+        <code>@voteLink</code>
+        <button class="btn btn-primary btn-sm" @onclick="CopyLinkAsync">@(copied ? "Copied!" : "Copy link")</button>
+    </div>
+
+    @if (copyError is not null)
+    {
+        <p class="text-muted small mt-2">Couldn't copy automatically (@copyError) &mdash; select and copy the link above instead.</p>
+    }
+
+    <p class="mt-3">
+        <a href="@voteLink" target="_blank">Open the vote page yourself &rarr;</a>
+    </p>
+}
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthState { get; set; }
+
+    private string? leagueName;
+    private string voteLink = "";
+    private bool copied;
+    private string? copyError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthState!;
+        leagueName = authState.User.FindFirst( "league_name" )?.Value;
+        var slug = authState.User.FindFirst( "league_slug" )?.Value;
+        voteLink = $"{Navigation.BaseUri}{slug}";
+    }
+
+    private async Task CopyLinkAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync( "navigator.clipboard.writeText", voteLink );
+            copied = true;
+            copyError = null;
+        }
+        catch (Exception ex)
+        {
+            copyError = ex.Message;
+        }
+    }
+}

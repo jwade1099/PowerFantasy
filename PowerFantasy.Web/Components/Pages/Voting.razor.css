@@ -1,0 +1,17 @@
+.voting-link-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    max-width: 560px;
+    background-color: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+}
+
+.voting-link-card code {
+    color: var(--accent-2);
+    font-size: 1rem;
+    word-break: break-all;
+}

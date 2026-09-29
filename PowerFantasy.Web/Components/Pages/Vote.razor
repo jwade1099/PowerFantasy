@@ -1,0 +1,219 @@
+@page "/{Slug}"
+@rendermode InteractiveServer
+@inject PowerFantasyApiClient Api
+
+<PageTitle>Power Rankings Vote</PageTitle>
+
+@if (league is null && loadError is null)
+{
+    <p><em>Loading...</em></p>
+}
+else if (loadError is not null)
+{
+    <div class="alert alert-danger">@loadError</div>
+}
+else if (poll is not null)
+{
+    <h1>Week @poll.Week Power Rankings</h1>
+    <p class="text-muted">@league!.Name &middot; <a href="@($"{Slug}/standings")">View league standings &rarr;</a></p>
+    <div class="vote-progress mb-4">
+        <div class="vote-progress-bar" style="width: @(VotePercent( poll ))%"></div>
+    </div>
+    <p class="text-muted mb-4">@poll.VotesSubmitted of @poll.TotalVoters teams have voted</p>
+
+    <div class="mb-4">
+        <label for="voter" class="form-label">Voting as</label>
+        @if (string.IsNullOrEmpty( selectedVoterId ))
+        {
+            <select id="voter" class="form-select" style="max-width: 340px" @bind="selectedVoterId" @bind:after="OnVoterChanged">
+                <option value="">-- choose your team --</option>
+                @foreach (var team in poll.Teams)
+                {
+                    <option value="@team.Id">@team.TeamName (@team.ManagerName) &middot; @FormatRecord( team )</option>
+                }
+            </select>
+        }
+        else
+        {
+            var selectedTeam = poll.Teams.FirstOrDefault( t => t.Id.ToString() == selectedVoterId );
+            <div class="voter-locked" style="max-width: 340px">
+                <button type="button" class="voter-back" @onclick="ChangeVoter" title="Change team" aria-label="Change team">&larr;</button>
+                <span class="fw-semibold">@selectedTeam?.TeamName</span>
+                <small class="text-muted">(@selectedTeam?.ManagerName)</small>
+            </div>
+        }
+    </div>
+
+    @if (!string.IsNullOrEmpty( selectedVoterId ))
+    {
+        <p class="text-muted">Drag teams into order from best (top) to worst (bottom).</p>
+
+        <ol class="ranking-list" style="max-width: 560px">
+            @for (var i = 0; i < ranking.Count; i++)
+            {
+                var index = i;
+                var team = ranking[index];
+                var dragging = dragOverIndex == index ? "dragging-over" : "";
+                <li class="ranking-item @dragging"
+                    draggable="true"
+                    style="--team-accent: @GetTeamColor( team.Id )"
+                    @ondragstart="() => OnDragStart( index )"
+                    @ondragenter="() => OnDragEnter( index )"
+                    @ondragend="OnDragEnd"
+                    @ondrop="() => OnDrop( index )"
+                    @ondragover:preventDefault="true">
+                    <span class="ranking-index">@(index + 1)</span>
+                    <span class="ranking-grip" aria-hidden="true">&#x2630;</span>
+                    @if (AvatarHelper.Thumb( team.AvatarUrl ) is { } avatar)
+                    {
+                        <img src="@avatar" alt="" width="32" height="32" class="rounded-circle me-2" />
+                    }
+                    <span>
+                        <span class="fw-semibold">@team.TeamName</span>
+                        <small class="text-muted d-block">@team.ManagerName &middot; @FormatRecord( team )</small>
+                    </span>
+                </li>
+            }
+        </ol>
+
+        <button class="btn btn-primary mt-3" @onclick="Submit" disabled="@submitting">Submit ballot</button>
+
+        @if (submitError is not null)
+        {
+            <div class="alert alert-danger mt-3">@submitError</div>
+        }
+
+        @if (submitted)
+        {
+            <div class="alert alert-success mt-3">
+                Thanks! Your ballot is in.
+            </div>
+        }
+    }
+}
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+
+    private LeagueDto? league;
+    private PollDto? poll;
+    private string? loadError;
+    private string selectedVoterId = "";
+    private List<TeamDto> ranking = [];
+    private Dictionary<Guid, string> teamColors = [];
+    private bool submitting;
+    private bool submitted;
+    private string? submitError;
+    private int? draggedIndex;
+    private int? dragOverIndex;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            league = await Api.GetLeagueBySlugAsync( Slug );
+            if (league is null)
+            {
+                loadError = "That league link isn't valid. Double check the link your commissioner shared.";
+                return;
+            }
+
+            poll = await Api.GetCurrentPollAsync( league.Id );
+            if (poll is not null)
+            {
+                ranking = [.. poll.Teams.OrderBy( t => t.TeamName )];
+                teamColors = ranking
+                    .Select(( t, i ) => (t.Id, Hue: ranking.Count == 0 ? 0 : i * 360.0 / ranking.Count))
+                    .ToDictionary( x => x.Id, x => $"hsl({x.Hue:0}, 75%, 65%)" );
+            }
+        }
+        catch (Exception ex)
+        {
+            loadError = $"Couldn't load this week's poll: {ex.Message}";
+        }
+    }
+
+    private void OnVoterChanged()
+    {
+        submitted = false;
+        submitError = null;
+    }
+
+    private void ChangeVoter()
+    {
+        selectedVoterId = "";
+        submitted = false;
+        submitError = null;
+    }
+
+    private static int VotePercent( PollDto poll ) =>
+        poll.TotalVoters == 0 ? 0 : (int)(100.0 * poll.VotesSubmitted / poll.TotalVoters);
+
+    private static string FormatRecord( TeamDto team ) =>
+        team.Ties > 0 ? $"{team.Wins}-{team.Losses}-{team.Ties}" : $"{team.Wins}-{team.Losses}";
+
+    private string GetTeamColor( Guid teamId ) => teamColors.GetValueOrDefault( teamId, "#7c5cff" );
+
+    private void OnDragStart( int index )
+    {
+        draggedIndex = index;
+    }
+
+    private void OnDragEnter( int index )
+    {
+        dragOverIndex = index;
+    }
+
+    private void OnDragEnd()
+    {
+        draggedIndex = null;
+        dragOverIndex = null;
+    }
+
+    private void OnDrop( int targetIndex )
+    {
+        if (draggedIndex is null || draggedIndex == targetIndex)
+        {
+            draggedIndex = null;
+            dragOverIndex = null;
+            return;
+        }
+
+        var team = ranking[draggedIndex.Value];
+        ranking.RemoveAt( draggedIndex.Value );
+        ranking.Insert( targetIndex, team );
+
+        draggedIndex = null;
+        dragOverIndex = null;
+    }
+
+    private async Task Submit()
+    {
+        if (poll is null || league is null || string.IsNullOrEmpty( selectedVoterId )) return;
+
+        submitting = true;
+        submitError = null;
+        try
+        {
+            var request = new SubmitVoteRequest( Guid.Parse( selectedVoterId ), ranking.Select( t => t.Id ).ToList() );
+            var response = await Api.SubmitVoteAsync( league.Id, poll.Id, request );
+            if (response.IsSuccessStatusCode)
+            {
+                submitted = true;
+                poll = await Api.GetCurrentPollAsync( league.Id );
+            }
+            else
+            {
+                submitError = $"Vote was rejected: {await response.Content.ReadAsStringAsync()}";
+            }
+        }
+        catch (Exception ex)
+        {
+            submitError = $"Couldn't submit your vote: {ex.Message}";
+        }
+        finally
+        {
+            submitting = false;
+        }
+    }
+}

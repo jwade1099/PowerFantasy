@@ -1,0 +1,21 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.5.4">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UserSecretsId>2cde9402-1f8f-445f-a08f-fddedd967ca5</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PowerFantasy.ApiService\PowerFantasy.ApiService.csproj" />
+    <ProjectReference Include="..\PowerFantasy.Web\PowerFantasy.Web.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" Version="13.5.4" />
+    <PackageReference Include="Aspire.Hosting.Redis" Version="13.5.4" />
+  </ItemGroup>
+
+</Project>

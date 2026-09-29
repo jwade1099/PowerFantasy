@@ -1,0 +1,128 @@
+@inject PowerFantasyApiClient Api
+
+@if (dashboard is null && loadError is null)
+{
+    <p><em>Loading dashboard...</em></p>
+}
+else if (loadError is not null)
+{
+    <div class="alert alert-danger">@loadError</div>
+}
+else if (dashboard is not null)
+{
+    <p class="text-muted mb-4">@dashboard.Season season &middot; Week @dashboard.Week</p>
+
+    <h2 class="h5 section-heading">Standings</h2>
+    <table class="table align-middle">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Team</th>
+                <th>Manager</th>
+                <th>Record</th>
+                <th>PF</th>
+                <th>PA</th>
+                <th>Diff</th>
+            </tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < dashboard.Standings.Count; i++)
+            {
+                var team = dashboard.Standings[i];
+                var diff = team.PointsFor - team.PointsAgainst;
+                <tr>
+                    <td><span class="rank-badge">@RankBadge( i )</span></td>
+                    <td>
+                        @if (AvatarHelper.Thumb( team.AvatarUrl ) is { } avatar)
+                        {
+                            <img src="@avatar" alt="" width="28" height="28" class="rounded-circle me-2" />
+                        }
+                        <span class="fw-semibold">@team.TeamName</span>
+                    </td>
+                    <td class="text-muted">@team.ManagerName</td>
+                    <td>@FormatRecord( team )</td>
+                    <td>@team.PointsFor.ToString( "0.0" )</td>
+                    <td>@team.PointsAgainst.ToString( "0.0" )</td>
+                    <td class="@(diff >= 0 ? "diff-positive" : "diff-negative")">@diff.ToString( "+0.0;-0.0;0.0" )</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <h2 class="h5 section-heading mt-5">Week @dashboard.Week Matchups</h2>
+    @if (dashboard.Matchups.Count == 0)
+    {
+        <p class="text-muted">No matchups posted for this week yet.</p>
+    }
+    else
+    {
+        <div class="row row-cols-1 row-cols-md-2 g-3">
+            @foreach (var matchup in dashboard.Matchups)
+            {
+                <div class="col">
+                    <div class="card matchup-card">
+                        <div class="card-body">
+                            @for (var t = 0; t < matchup.Teams.Count; t++)
+                            {
+                                var team = matchup.Teams[t];
+                                var leading = matchup.Teams.Count == 2 && team.Points >= matchup.Teams.Max( x => x.Points ) && matchup.Teams[0].Points != matchup.Teams[1].Points;
+                                <div class="matchup-team @(leading ? "leading" : "")">
+                                    @if (AvatarHelper.Thumb( team.AvatarUrl ) is { } avatar)
+                                    {
+                                        <img src="@avatar" alt="" width="28" height="28" class="rounded-circle me-2" />
+                                    }
+                                    <span class="matchup-name">@team.TeamName</span>
+                                    <span class="matchup-score">@team.Points.ToString( "0.00" )</span>
+                                </div>
+                                @if (t == 0 && matchup.Teams.Count == 2)
+                                {
+                                    <div class="matchup-vs">VS</div>
+                                }
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    @if (usage is not null)
+    {
+        <p class="text-muted small mt-5">
+            Sleeper API: @usage.CallsThisMinute call(s) this minute, @usage.CallsInLookbackWindow over the last @usage.LookbackMinutes minutes
+            &mdash; Sleeper asks apps to stay under 1000 calls/minute.
+        </p>
+    }
+}
+
+@code {
+    [Parameter, EditorRequired] public Guid LeagueId { get; set; }
+
+    private DashboardDto? dashboard;
+    private SleeperApiUsage? usage;
+    private string? loadError;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        try
+        {
+            dashboard = await Api.GetDashboardAsync( LeagueId );
+            usage = await Api.GetSleeperUsageAsync();
+        }
+        catch (Exception ex)
+        {
+            loadError = $"Couldn't load the dashboard: {ex.Message}";
+        }
+    }
+
+    private static string FormatRecord( StandingDto team ) =>
+        team.Ties > 0 ? $"{team.Wins}-{team.Losses}-{team.Ties}" : $"{team.Wins}-{team.Losses}";
+
+    private static string RankBadge( int index ) => index switch
+    {
+        0 => "🥇",
+        1 => "🥈",
+        2 => "🥉",
+        _ => (index + 1).ToString()
+    };
+}

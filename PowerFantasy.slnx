@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="PowerFantasy.ApiService/PowerFantasy.ApiService.csproj" />
+  <Project Path="PowerFantasy.AppHost/PowerFantasy.AppHost.csproj" />
+  <Project Path="PowerFantasy.ServiceDefaults/PowerFantasy.ServiceDefaults.csproj" />
+  <Project Path="PowerFantasy.Web/PowerFantasy.Web.csproj" />
+</Solution>

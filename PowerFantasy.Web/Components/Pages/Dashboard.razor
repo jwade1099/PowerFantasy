@@ -1,0 +1,34 @@
+@page "/dashboard"
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+<PageTitle>League Dashboard</PageTitle>
+
+<h1>League Dashboard</h1>
+
+@if (loadError is not null)
+{
+    <div class="alert alert-danger">@loadError</div>
+}
+else if (leagueId is not null)
+{
+    <DashboardView LeagueId="leagueId.Value" />
+}
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthState { get; set; }
+
+    private Guid? leagueId;
+    private string? loadError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthState!;
+        leagueId = LeagueClaims.GetLeagueId( authState.User );
+        if (leagueId is null)
+        {
+            loadError = "No league is linked to your account.";
+        }
+    }
+}

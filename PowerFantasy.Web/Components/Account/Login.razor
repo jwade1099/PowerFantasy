@@ -1,0 +1,67 @@
+@page "/commissioner/login"
+@using System.ComponentModel.DataAnnotations
+@inject SignInManager<ApplicationUser> SignInManager
+@inject NavigationManager Navigation
+
+<PageTitle>Log In — Commissioner</PageTitle>
+
+<div class="auth-card">
+    <h1>Commissioner log in</h1>
+
+    <EditForm Model="Input" FormName="login" OnValidSubmit="HandleLoginAsync" method="post">
+        <DataAnnotationsValidator />
+        <ValidationSummary class="text-danger" />
+
+        <div class="mb-3">
+            <label class="form-label">Email</label>
+            <InputText class="form-control" @bind-Value="Input.Email" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Password</label>
+            <InputText type="password" class="form-control" @bind-Value="Input.Password" />
+        </div>
+
+        @if (errorMessage is not null)
+        {
+            <div class="alert alert-danger">@errorMessage</div>
+        }
+
+        <button class="btn btn-primary" type="submit" disabled="@submitting">Log in</button>
+    </EditForm>
+
+    <p class="mt-3"><a href="/commissioner/signup">New commissioner? Set up your league</a></p>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = new();
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    private string? errorMessage;
+    private bool submitting;
+
+    private async Task HandleLoginAsync()
+    {
+        submitting = true;
+        errorMessage = null;
+
+        var result = await SignInManager.PasswordSignInAsync( Input.Email, Input.Password, isPersistent: true, lockoutOnFailure: false );
+        if (!result.Succeeded)
+        {
+            errorMessage = "Incorrect email or password.";
+            submitting = false;
+            return;
+        }
+
+        Navigation.NavigateTo( string.IsNullOrEmpty( ReturnUrl ) ? "/dashboard" : ReturnUrl, forceLoad: true );
+    }
+
+    private class InputModel
+    {
+        [Required, EmailAddress] public string Email { get; set; } = "";
+        [Required] public string Password { get; set; } = "";
+    }
+}

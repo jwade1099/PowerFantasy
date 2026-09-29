@@ -1,0 +1,37 @@
+@page "/{Slug}/standings"
+@rendermode InteractiveServer
+@inject PowerFantasyApiClient Api
+
+<PageTitle>League Standings</PageTitle>
+
+@if (league is null && loadError is null)
+{
+    <p><em>Loading...</em></p>
+}
+else if (loadError is not null)
+{
+    <div class="alert alert-danger">@loadError</div>
+}
+else if (league is not null)
+{
+    <h1>@league.Name</h1>
+    <p class="text-muted mb-4"><a href="@Slug">&larr; Back to voting</a></p>
+
+    <DashboardView LeagueId="league.Id" />
+}
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+
+    private LeagueDto? league;
+    private string? loadError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        league = await Api.GetLeagueBySlugAsync( Slug );
+        if (league is null)
+        {
+            loadError = "That league link isn't valid. Double check the link your commissioner shared.";
+        }
+    }
+}

@@ -1,0 +1,112 @@
+@page "/commissioner/signup"
+@using System.ComponentModel.DataAnnotations
+@using System.Net
+@inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
+@inject PowerFantasyApiClient Api
+@inject NavigationManager Navigation
+
+<PageTitle>Sign Up — Commissioner</PageTitle>
+
+<div class="auth-card">
+    <h1>Set up your league</h1>
+    <p class="text-muted">Create a commissioner account and claim your Sleeper league.</p>
+
+    @if (leagueCreated is not null)
+    {
+        <div class="alert alert-success">
+            <p class="mb-2">You're all set! Share this link with your league so everyone can vote:</p>
+            <code>@voteLink</code>
+        </div>
+        <a class="btn btn-primary mt-2" href="/dashboard">Go to your dashboard &rarr;</a>
+    }
+    else
+    {
+        <EditForm Model="Input" FormName="signup" OnValidSubmit="HandleSignupAsync" method="post">
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" />
+
+            <div class="mb-3">
+                <label class="form-label">Sleeper league ID</label>
+                <InputText class="form-control" @bind-Value="Input.SleeperLeagueId" placeholder="e.g. 11111111111111111" />
+                <small class="text-muted">Find this in your league's Sleeper URL.</small>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Email</label>
+                <InputText class="form-control" @bind-Value="Input.Email" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Password</label>
+                <InputText type="password" class="form-control" @bind-Value="Input.Password" />
+            </div>
+
+            @if (errorMessage is not null)
+            {
+                <div class="alert alert-danger">@errorMessage</div>
+            }
+
+            <button class="btn btn-primary" type="submit" disabled="@submitting">Create account</button>
+        </EditForm>
+    }
+
+    <p class="mt-3"><a href="/commissioner/login">Already a commissioner? Log in</a></p>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = new();
+
+    private string? errorMessage;
+    private bool submitting;
+    private LeagueDto? leagueCreated;
+    private string? voteLink;
+
+    private async Task HandleSignupAsync()
+    {
+        submitting = true;
+        errorMessage = null;
+
+        var lookup = await Api.LookupSleeperLeagueAsync( Input.SleeperLeagueId );
+        if (lookup is null)
+        {
+            errorMessage = "That Sleeper league ID couldn't be found. Double check it and try again.";
+            submitting = false;
+            return;
+        }
+
+        var user = new ApplicationUser { UserName = Input.Email, Email = Input.Email };
+        var createResult = await UserManager.CreateAsync( user, Input.Password );
+        if (!createResult.Succeeded)
+        {
+            errorMessage = string.Join( " ", createResult.Errors.Select( e => e.Description ) );
+            submitting = false;
+            return;
+        }
+
+        var response = await Api.CreateLeagueAsync( new CreateLeagueRequest( Input.SleeperLeagueId, user.Id ) );
+        if (!response.IsSuccessStatusCode)
+        {
+            await UserManager.DeleteAsync( user );
+            errorMessage = response.StatusCode == HttpStatusCode.Conflict
+                ? "That Sleeper league has already been claimed by a commissioner."
+                : "Something went wrong creating your league. Please try again.";
+            submitting = false;
+            return;
+        }
+
+        leagueCreated = await response.Content.ReadFromJsonAsync<LeagueDto>();
+        voteLink = $"{Navigation.BaseUri}{leagueCreated!.PublicSlug}";
+
+        await SignInManager.SignInAsync( user, isPersistent: true );
+        submitting = false;
+    }
+
+    private class InputModel
+    {
+        [Required] public string SleeperLeagueId { get; set; } = "";
+        [Required, EmailAddress] public string Email { get; set; } = "";
+        [Required, MinLength( 6 )] public string Password { get; set; } = "";
+    }
+}

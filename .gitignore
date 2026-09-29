@@ -1,0 +1,15 @@
+# Local secrets / config
+.env
+
+# Build output
+bin/
+obj/
+
+# Visual Studio
+.vs/
+*.user
+.editorconfig
+
+# Rider / VS Code
+.idea/
+.vscode/

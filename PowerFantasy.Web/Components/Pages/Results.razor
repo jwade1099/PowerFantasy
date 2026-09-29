@@ -1,0 +1,104 @@
+@page "/dashboard/results/{PollId:guid}"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inject PowerFantasyApiClient Api
+
+<PageTitle>Power Rankings Results</PageTitle>
+
+@if (results is null && loadError is null)
+{
+    <p><em>Loading results...</em></p>
+}
+else if (loadError is not null)
+{
+    <div class="alert alert-danger">@loadError</div>
+}
+else if (results is not null)
+{
+    <h1>Week @results.Week Power Rankings</h1>
+    <p class="text-muted mb-4">@results.VotesSubmitted of @results.TotalVoters teams have voted</p>
+
+    <table class="table align-middle">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Team</th>
+                <th>Manager</th>
+                <th>Record</th>
+                <th>Average rank</th>
+                <th>Votes counted</th>
+            </tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < results.Rankings.Count; i++)
+            {
+                var team = results.Rankings[i];
+                <tr>
+                    <td>@RankBadge( i )</td>
+                    <td>
+                        @if (AvatarHelper.Thumb( team.AvatarUrl ) is { } avatar)
+                        {
+                            <img src="@avatar" alt="" width="28" height="28" class="rounded-circle me-2" />
+                        }
+                        <span class="fw-semibold">@team.TeamName</span>
+                    </td>
+                    <td class="text-muted">@team.ManagerName</td>
+                    <td>@FormatRecord( team )</td>
+                    <td>@team.AverageRank</td>
+                    <td>@team.VoteCount</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <a href="/dashboard/history">&larr; Back to history</a>
+}
+
+@code {
+    [Parameter] public Guid PollId { get; set; }
+
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthState { get; set; }
+
+    private PollResultsDto? results;
+    private string? loadError;
+
+    private static string FormatRecord( PollResultDto team ) =>
+        team.Ties > 0 ? $"{team.Wins}-{team.Losses}-{team.Ties}" : $"{team.Wins}-{team.Losses}";
+
+    private static string RankBadge( int index ) => index switch
+    {
+        0 => "🥇",
+        1 => "🥈",
+        2 => "🥉",
+        _ => (index + 1).ToString()
+    };
+
+    protected override async Task OnInitializedAsync() => await Load();
+
+    protected override async Task OnParametersSetAsync() => await Load();
+
+    private async Task Load()
+    {
+        try
+        {
+            var authState = await AuthState!;
+            var leagueId = LeagueClaims.GetLeagueId( authState.User );
+            if (leagueId is null)
+            {
+                loadError = "No league is linked to your account.";
+                return;
+            }
+
+            results = await Api.GetResultsAsync( leagueId.Value, PollId );
+            if (results is null)
+            {
+                loadError = "That poll doesn't exist.";
+            }
+        }
+        catch (Exception ex)
+        {
+            loadError = $"Couldn't load results: {ex.Message}";
+        }
+    }
+}

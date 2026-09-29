@@ -1,0 +1,66 @@
+@page "/dashboard/history"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inject PowerFantasyApiClient Api
+
+<PageTitle>Power Rankings History</PageTitle>
+
+<h1>Poll History</h1>
+
+@if (loadError is not null)
+{
+    <div class="alert alert-danger">@loadError</div>
+}
+else if (history is null)
+{
+    <p><em>Loading...</em></p>
+}
+else if (history.Count == 0)
+{
+    <p>No polls yet.</p>
+}
+else
+{
+    <table class="table align-middle">
+        <thead>
+            <tr>
+                <th>Week</th>
+                <th>Season</th>
+                <th>Votes</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var poll in history)
+            {
+                <tr>
+                    <td class="fw-semibold">@poll.Week</td>
+                    <td class="text-muted">@poll.Season</td>
+                    <td>@poll.VotesSubmitted / @poll.TotalVoters</td>
+                    <td><a href="@($"/dashboard/results/{poll.Id}")">View results &rarr;</a></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthState { get; set; }
+
+    private List<PollSummaryDto>? history;
+    private string? loadError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthState!;
+        var leagueId = LeagueClaims.GetLeagueId( authState.User );
+        if (leagueId is null)
+        {
+            loadError = "No league is linked to your account.";
+            return;
+        }
+
+        history = await Api.GetHistoryAsync( leagueId.Value );
+    }
+}
