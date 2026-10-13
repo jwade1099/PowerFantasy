@@ -20,17 +20,35 @@ builder.Services.AddHttpClient<PowerFantasyApiClient>( client =>
         // This URL uses "https+http://" to indicate HTTPS is preferred over HTTP.
         // Learn more about service discovery scheme resolution at https://aka.ms/dotnet/sdschemes.
         client.BaseAddress = new( "https+http://apiservice" );
+
+        var internalKey = builder.Configuration["InternalApi:Key"];
+        if (!string.IsNullOrEmpty( internalKey ))
+        {
+            client.DefaultRequestHeaders.Add( "X-Internal-Key", internalKey );
+        }
     } );
 
 builder.Services.AddDbContext<ApplicationIdentityDbContext>( options =>
-    options.UseNpgsql(
+    options.UseSqlServer(
         builder.Configuration.GetConnectionString( "powerfantasydb" ),
-        npgsql => npgsql.MigrationsHistoryTable( "__EFMigrationsHistoryIdentity" ) ) );
+        sql => sql
+            .MigrationsHistoryTable( "__EFMigrationsHistoryIdentity" )
+            .EnableRetryOnFailure() ) );
 
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddAuthorization();
 builder.Services.AddAuthentication( IdentityConstants.ApplicationScheme )
     .AddIdentityCookies();
+builder.Services.ConfigureApplicationCookie( options =>
+{
+    options.LoginPath = "/commissioner/login";
+
+    // TLS is terminated in front of the container in Azure, so don't rely on the request scheme.
+    if (!builder.Environment.IsDevelopment())
+    {
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    }
+} );
 builder.Services.AddIdentityCore<ApplicationUser>( options => options.SignIn.RequireConfirmedAccount = false )
     .AddEntityFrameworkStores<ApplicationIdentityDbContext>()
     .AddSignInManager()

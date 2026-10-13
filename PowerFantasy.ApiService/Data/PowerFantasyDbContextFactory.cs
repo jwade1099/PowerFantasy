@@ -9,7 +9,7 @@ public class PowerFantasyDbContextFactory : IDesignTimeDbContextFactory<PowerFan
     public PowerFantasyDbContext CreateDbContext( string[] args )
     {
         var optionsBuilder = new DbContextOptionsBuilder<PowerFantasyDbContext>();
-        optionsBuilder.UseNpgsql( "Host=localhost;Database=powerfantasydb;Username=postgres;Password=postgres" );
+        optionsBuilder.UseSqlServer( "Server=localhost;Database=powerfantasydb;User Id=sa;Password=design-time-only;TrustServerCertificate=true" );
         return new PowerFantasyDbContext( optionsBuilder.Options );
     }
 }

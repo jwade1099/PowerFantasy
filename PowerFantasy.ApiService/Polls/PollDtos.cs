@@ -12,4 +12,8 @@ public record PollResultsDto( Guid PollId, string Season, int Week, int VotesSub
 
 public record PollSummaryDto( Guid Id, string Season, int Week, DateTimeOffset CreatedAt, int VotesSubmitted, int TotalVoters );
 
+public record BallotRankDto( int Rank, Guid TeamId, string TeamName );
+
+public record BallotDto( Guid VoterTeamId, string VoterTeamName, string VoterManagerName, DateTimeOffset SubmittedAt, List<BallotRankDto> Rankings );
+
 public enum SubmitVoteResult { Success, PollNotFound, InvalidVoter, InvalidBallot }

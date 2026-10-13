@@ -51,7 +51,47 @@ else if (results is not null)
         </tbody>
     </table>
 
-    <a href="/dashboard/history">&larr; Back to history</a>
+    <h2 class="h5 section-heading mt-5">Individual ballots</h2>
+    @if (ballots.Count == 0)
+    {
+        <p class="text-muted">No ballots submitted yet.</p>
+    }
+    else
+    {
+        <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3">
+            @foreach (var ballot in ballots)
+            {
+                <div class="col">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <div class="fw-semibold">@ballot.VoterTeamName</div>
+                            <div class="text-muted small mb-2">
+                                @ballot.VoterManagerName &middot; @ballot.SubmittedAt.ToUniversalTime().ToString( "MMM d, h:mm tt" ) UTC
+                            </div>
+                            <ol class="ballot-list">
+                                @foreach (var rank in ballot.Rankings)
+                                {
+                                    <li class="@(rank.TeamId == ballot.VoterTeamId ? "ballot-self" : "")">
+                                        <span class="ballot-rank">@rank.Rank</span>
+                                        @rank.TeamName
+                                    </li>
+                                }
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    @if (nonVoters.Count > 0)
+    {
+        <p class="text-muted mt-4">
+            Haven't voted yet: @string.Join( ", ", nonVoters )
+        </p>
+    }
+
+    <p class="mt-4"><a href="/dashboard/history">&larr; Back to history</a></p>
 }
 
 @code {
@@ -61,6 +101,8 @@ else if (results is not null)
     private Task<AuthenticationState>? AuthState { get; set; }
 
     private PollResultsDto? results;
+    private List<BallotDto> ballots = [];
+    private List<string> nonVoters = [];
     private string? loadError;
 
     private static string FormatRecord( PollResultDto team ) =>
@@ -73,8 +115,6 @@ else if (results is not null)
         2 => "🥉",
         _ => (index + 1).ToString()
     };
-
-    protected override async Task OnInitializedAsync() => await Load();
 
     protected override async Task OnParametersSetAsync() => await Load();
 
@@ -94,7 +134,16 @@ else if (results is not null)
             if (results is null)
             {
                 loadError = "That poll doesn't exist.";
+                return;
             }
+
+            ballots = await Api.GetBallotsAsync( leagueId.Value, PollId );
+            var voterIds = ballots.Select( b => b.VoterTeamId ).ToHashSet();
+            nonVoters = results.Rankings
+                .Where( r => !voterIds.Contains( r.TeamId ) )
+                .Select( r => r.TeamName )
+                .OrderBy( name => name )
+                .ToList();
         }
         catch (Exception ex)
         {

@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using PowerFantasy.ApiService.Dashboard;
 using PowerFantasy.ApiService.Data;
@@ -17,7 +19,7 @@ builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
 
 builder.AddRedisDistributedCache( "cache" );
-builder.AddNpgsqlDbContext<PowerFantasyDbContext>( "powerfantasydb" );
+builder.AddSqlServerDbContext<PowerFantasyDbContext>( "powerfantasydb" );
 
 builder.Services.AddHttpClient<SleeperClient>( c =>
     c.BaseAddress = new Uri( "https://api.sleeper.app/v1/" ) );
@@ -31,6 +33,37 @@ var app = builder.Build();
 
 // Configure the HTTP request pipeline.
 app.UseExceptionHandler();
+
+// The API has no user auth of its own; only the Web app (which holds the shared key) may call /api.
+var internalKey = app.Configuration["InternalApi:Key"];
+app.Use( async ( context, next ) =>
+{
+    if (context.Request.Path.StartsWithSegments( "/api" ))
+    {
+        if (string.IsNullOrEmpty( internalKey ))
+        {
+            if (!app.Environment.IsDevelopment())
+            {
+                context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+                return;
+            }
+        }
+        else
+        {
+            var provided = context.Request.Headers["X-Internal-Key"].ToString();
+            var matches = CryptographicOperations.FixedTimeEquals(
+                Encoding.UTF8.GetBytes( provided ),
+                Encoding.UTF8.GetBytes( internalKey ) );
+            if (!matches)
+            {
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                return;
+            }
+        }
+    }
+
+    await next();
+} );
 
 if (app.Environment.IsDevelopment())
 {

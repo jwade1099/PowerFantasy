@@ -9,9 +9,9 @@ public class ApplicationIdentityDbContextFactory : IDesignTimeDbContextFactory<A
     public ApplicationIdentityDbContext CreateDbContext( string[] args )
     {
         var optionsBuilder = new DbContextOptionsBuilder<ApplicationIdentityDbContext>();
-        optionsBuilder.UseNpgsql(
-            "Host=localhost;Database=powerfantasydb;Username=postgres;Password=postgres",
-            npgsql => npgsql.MigrationsHistoryTable( "__EFMigrationsHistoryIdentity" ) );
+        optionsBuilder.UseSqlServer(
+            "Server=localhost;Database=powerfantasydb;User Id=sa;Password=design-time-only;TrustServerCertificate=true",
+            sql => sql.MigrationsHistoryTable( "__EFMigrationsHistoryIdentity" ) );
         return new ApplicationIdentityDbContext( optionsBuilder.Options );
     }
 }

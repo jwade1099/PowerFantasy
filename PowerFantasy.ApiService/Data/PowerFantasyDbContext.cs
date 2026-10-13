@@ -53,6 +53,6 @@ public class PowerFantasyDbContext( DbContextOptions<PowerFantasyDbContext> opti
             .HasOne<Team>()
             .WithMany()
             .HasForeignKey( v => v.VoterTeamId )
-            .OnDelete( DeleteBehavior.Cascade );
+            .OnDelete( DeleteBehavior.NoAction );
     }
 }

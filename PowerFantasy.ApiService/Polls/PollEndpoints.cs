@@ -47,6 +47,12 @@ public static class PollEndpoints
             return results is null ? Results.NotFound() : Results.Ok( results );
         } );
 
+        group.MapGet( "/polls/{pollId:guid}/ballots", async ( Guid leagueId, Guid pollId, PollService polls, CancellationToken ct ) =>
+        {
+            var ballots = await polls.GetBallotsAsync( leagueId, pollId, ct );
+            return ballots is null ? Results.NotFound() : Results.Ok( ballots );
+        } );
+
         group.MapGet( "/polls/history", async ( Guid leagueId, PollService polls, CancellationToken ct ) =>
         {
             var history = await polls.GetHistoryAsync( leagueId, ct );
