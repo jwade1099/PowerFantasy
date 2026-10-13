@@ -123,6 +123,36 @@ public class PollService( PowerFantasyDbContext db, SleeperClient sleeper, Leagu
         return new PollResultsDto( poll.Id, poll.Season, poll.Week, votes.Count, teams.Count, rankings );
     }
 
+    public async Task<List<BallotDto>?> GetBallotsAsync( Guid leagueId, Guid pollId, CancellationToken ct = default )
+    {
+        var pollExists = await db.WeeklyPolls.AnyAsync( p => p.Id == pollId && p.LeagueId == leagueId, ct );
+        if (!pollExists)
+        {
+            return null;
+        }
+
+        var teams = await db.Teams.Where( t => t.LeagueId == leagueId ).ToDictionaryAsync( t => t.Id, ct );
+        var votes = await db.PollVotes
+            .Where( v => v.WeeklyPollId == pollId )
+            .OrderBy( v => v.SubmittedAt )
+            .ToListAsync( ct );
+
+        return votes
+            .Where( v => teams.ContainsKey( v.VoterTeamId ) )
+            .Select( v => new BallotDto(
+                v.VoterTeamId,
+                teams[v.VoterTeamId].TeamName,
+                teams[v.VoterTeamId].ManagerName,
+                v.SubmittedAt,
+                v.RankedTeamIds
+                    .Select(( teamId, index ) => new BallotRankDto(
+                        index + 1,
+                        teamId,
+                        teams.TryGetValue( teamId, out var team ) ? team.TeamName : "Unknown team" ))
+                    .ToList() ) )
+            .ToList();
+    }
+
     public async Task<List<PollSummaryDto>> GetHistoryAsync( Guid leagueId, CancellationToken ct = default )
     {
         var totalTeams = await db.Teams.CountAsync( t => t.LeagueId == leagueId, ct );

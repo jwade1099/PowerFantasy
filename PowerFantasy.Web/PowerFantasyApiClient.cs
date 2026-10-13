@@ -12,6 +12,10 @@ public record PollResultsDto( Guid PollId, string Season, int Week, int VotesSub
 
 public record PollSummaryDto( Guid Id, string Season, int Week, DateTimeOffset CreatedAt, int VotesSubmitted, int TotalVoters );
 
+public record BallotRankDto( int Rank, Guid TeamId, string TeamName );
+
+public record BallotDto( Guid VoterTeamId, string VoterTeamName, string VoterManagerName, DateTimeOffset SubmittedAt, List<BallotRankDto> Rankings );
+
 public record StandingDto(
     Guid TeamId, string TeamName, string ManagerName, string? AvatarUrl,
     int Wins, int Losses, int Ties, double PointsFor, double PointsAgainst );
@@ -40,6 +44,9 @@ public class PowerFantasyApiClient( HttpClient httpClient )
 
     public async Task<PollResultsDto?> GetResultsAsync( Guid leagueId, Guid pollId, CancellationToken ct = default ) =>
         await httpClient.GetFromJsonAsync<PollResultsDto>( $"/api/leagues/{leagueId}/polls/{pollId}/results", ct );
+
+    public async Task<List<BallotDto>> GetBallotsAsync( Guid leagueId, Guid pollId, CancellationToken ct = default ) =>
+        await httpClient.GetFromJsonAsync<List<BallotDto>>( $"/api/leagues/{leagueId}/polls/{pollId}/ballots", ct ) ?? [];
 
     public async Task<List<PollSummaryDto>> GetHistoryAsync( Guid leagueId, CancellationToken ct = default ) =>
         await httpClient.GetFromJsonAsync<List<PollSummaryDto>>( $"/api/leagues/{leagueId}/polls/history", ct ) ?? [];
