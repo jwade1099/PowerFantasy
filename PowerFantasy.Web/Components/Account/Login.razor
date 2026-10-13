@@ -48,15 +48,37 @@
         submitting = true;
         errorMessage = null;
 
-        var result = await SignInManager.PasswordSignInAsync( Input.Email, Input.Password, isPersistent: true, lockoutOnFailure: false );
+        var result = await SignInManager.PasswordSignInAsync( Input.Email, Input.Password, isPersistent: true, lockoutOnFailure: true );
         if (!result.Succeeded)
         {
-            errorMessage = "Incorrect email or password.";
+            errorMessage = result.IsLockedOut
+                ? "Too many failed attempts. Please wait a few minutes and try again."
+                : "Incorrect email or password.";
             submitting = false;
             return;
         }
 
-        Navigation.NavigateTo( string.IsNullOrEmpty( ReturnUrl ) ? "/dashboard" : ReturnUrl, forceLoad: true );
+        Navigation.NavigateTo( GetSafeReturnUrl(), forceLoad: true );
+    }
+
+    /// Only redirect to paths on this site; anything pointing at another host falls back to the dashboard.
+    private string GetSafeReturnUrl()
+    {
+        const string fallback = "/dashboard";
+        if (string.IsNullOrEmpty( ReturnUrl ))
+        {
+            return fallback;
+        }
+
+        var baseUri = new Uri( Navigation.BaseUri );
+        if (!Uri.TryCreate( baseUri, ReturnUrl, out var target ))
+        {
+            return fallback;
+        }
+
+        return target.GetLeftPart( UriPartial.Authority ) == baseUri.GetLeftPart( UriPartial.Authority )
+            ? target.PathAndQuery
+            : fallback;
     }
 
     private class InputModel
