@@ -46,7 +46,10 @@ else if (poll is not null)
 
     @if (!string.IsNullOrEmpty( selectedVoterId ))
     {
-        <p class="text-muted">Drag teams into order from best (top) to worst (bottom).</p>
+        <p class="text-muted">
+            <span class="hint-drag">Drag teams into order from best (top) to worst (bottom).</span>
+            <span class="hint-tap">Use the arrows to order teams from best (top) to worst (bottom).</span>
+        </p>
 
         <ol class="ranking-list" style="max-width: 560px">
             @for (var i = 0; i < ranking.Count; i++)
@@ -71,6 +74,10 @@ else if (poll is not null)
                     <span>
                         <span class="fw-semibold">@team.TeamName</span>
                         <small class="text-muted d-block">@team.ManagerName &middot; @FormatRecord( team )</small>
+                    </span>
+                    <span class="move-buttons">
+                        <button type="button" class="move-btn" disabled="@(index == 0)" @onclick="() => MoveUp( index )" aria-label="Move @team.TeamName up">&uarr;</button>
+                        <button type="button" class="move-btn" disabled="@(index == ranking.Count - 1)" @onclick="() => MoveDown( index )" aria-label="Move @team.TeamName down">&darr;</button>
                     </span>
                 </li>
             }
@@ -153,6 +160,18 @@ else if (poll is not null)
         team.Ties > 0 ? $"{team.Wins}-{team.Losses}-{team.Ties}" : $"{team.Wins}-{team.Losses}";
 
     private string GetTeamColor( Guid teamId ) => teamColors.GetValueOrDefault( teamId, "#7c5cff" );
+
+    private void MoveUp( int index )
+    {
+        if (index <= 0) return;
+        (ranking[index - 1], ranking[index]) = (ranking[index], ranking[index - 1]);
+    }
+
+    private void MoveDown( int index )
+    {
+        if (index >= ranking.Count - 1) return;
+        (ranking[index + 1], ranking[index]) = (ranking[index], ranking[index + 1]);
+    }
 
     private void OnDragStart( int index )
     {

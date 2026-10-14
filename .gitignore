@@ -16,3 +16,7 @@ obj/
 
 # Agents
 .claude/
+.azure
+
+next-steps.md
+azure.yaml
